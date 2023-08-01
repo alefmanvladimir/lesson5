@@ -1,0 +1,175 @@
+#pragma version =0.4.3;
+#pragma allow-post-modification;
+#pragma compute-asm-ltr;
+
+#include "tact_SendTon.headers.fc";
+#include "tact_SendTon.stdlib.fc";
+#include "tact_SendTon.storage.fc";
+
+;;
+;; Contract SendTon functions
+;;
+
+(slice) $SendTon$_contract_init() impure inline_ref {
+    var (($self'owner)) = (null());
+    $self'owner = __tact_context_get_sender();
+    return ($self'owner);
+}
+
+((slice), ()) $SendTon$_fun_onlyOwner((slice) $self) impure inline_ref {
+    var (($self'owner)) = $self;
+    throw_unless(53979, ( __tact_slice_eq_bits($self'owner, __tact_context_get_sender()) ));
+    return (($self'owner), ());
+}
+
+((slice), int) $SendTon$_fun_balance((slice) $self) impure inline_ref {
+    var (($self'owner)) = $self;
+    return (($self'owner), __tact_my_balance());
+}
+
+;;
+;; Receivers of a Contract SendTon
+;;
+
+(((slice)), ()) %$SendTon$_internal_empty((slice) $self) impure inline {
+    var ($self'owner) = $self;
+    return (($self'owner), ());
+}
+
+((slice), ()) $SendTon$_internal_text_5092b5dce0715a57dd969f5fb5a6f93025a0b02eab329470ca2b365ca0d7e93a((slice) $self) impure inline {
+    var ($self'owner) = $self;
+    ($self'owner)~$SendTon$_fun_onlyOwner();
+    $global_send($SendParameters$_constructor_to_bounce_value_mode(__tact_context_get_sender(), true, 0, (128 + 2)));
+    return (($self'owner), ());
+}
+
+((slice), ()) $SendTon$_internal_text_beb2935a82089b154d32f99c4377aa960aa115366cc2c602755e36b97f505cec((slice) $self) impure inline {
+    var ($self'owner) = $self;
+    ($self'owner)~$SendTon$_fun_onlyOwner();
+    $global_send($SendParameters$_constructor_to_bounce_value_mode(__tact_context_get_sender(), true, ((__tact_my_balance() - $Context$_get_value(__tact_context_get())) - 10000000), (2 + 64)));
+    return (($self'owner), ());
+}
+
+(((slice)), ()) $SendTon$_internal_binary_Withdraw((slice) $self, (int) $msg) impure inline {
+    var ($self'owner) = $self;
+    var ($msg'amount) = $msg;
+    ($self'owner)~$SendTon$_fun_onlyOwner();
+    int $amount = min($msg'amount, ((__tact_my_balance() - $Context$_get_value(__tact_context_get())) - 10000000));
+    throw_unless(54615, ($amount > 0));
+    $global_send($SendParameters$_constructor_to_bounce_value_mode(__tact_context_get_sender(), true, $amount, (2 + 64)));
+    return (($self'owner), ());
+}
+
+(((slice)), ()) $SendTon$_internal_binary_Deploy((slice) $self, (int) $deploy) impure inline {
+    var ($self'owner) = $self;
+    var ($deploy'queryId) = $deploy;
+    ($self'owner)~$SendTon$_fun_notify($DeployOk$_store_cell($DeployOk$_constructor_queryId($deploy'queryId)));
+    return (($self'owner), ());
+}
+
+;;
+;; Get methods of a Contract SendTon
+;;
+
+_ %balance() method_id(104128) {
+    var self = $SendTon$_contract_load();
+    var res = self~$SendTon$_fun_balance();
+    return res;
+}
+
+_ supported_interfaces() method_id {
+    return (
+        "org.ton.introspection.v0"H >> 128,
+        "org.ton.abi.ipfs.v0"H >> 128,
+        "org.ton.deploy.lazy.v0"H >> 128,
+        "org.ton.chain.workchain.v0"H >> 128
+    );
+}
+
+_ get_abi_ipfs() method_id {
+    return "ipfs://QmeQAEwVSbsGvL9ExYUGMqxXn7QyP9WJCxB1LZFRRKnNQE";
+}
+
+_ lazy_deployment_completed() method_id {
+    return get_data().begin_parse().load_int(1);
+}
+
+;;
+;; Routing of a Contract SendTon
+;;
+
+((slice), int) $SendTon$_contract_router_internal((slice) self, int msg_bounced, slice in_msg) impure inline_ref {
+    ;; Handle bounced messages
+    if (msg_bounced) {
+        return (self, true);
+    }
+    
+    ;; Parse incoming message
+    int op = 0;
+    if (slice_bits(in_msg) >= 32) {
+        op = in_msg.preload_uint(32);
+    }
+    
+    
+    ;; Receive empty message
+    if ((op == 0) & (slice_bits(in_msg) <= 32)) {
+        self~%$SendTon$_internal_empty();
+        return (self, true);
+    }
+    
+    ;; Receive Withdraw message
+    if (op == 195467089) {
+        var msg = in_msg~$Withdraw$_load();
+        self~$SendTon$_internal_binary_Withdraw(msg);
+        return (self, true);
+    }
+    
+    ;; Receive Deploy message
+    if (op == 2490013878) {
+        var msg = in_msg~$Deploy$_load();
+        self~$SendTon$_internal_binary_Deploy(msg);
+        return (self, true);
+    }
+    
+    ;; Text Receivers
+    if (op == 0) {
+        var text_op = slice_hash(in_msg);
+        
+        ;; Receive "withdraw all" message
+        if (text_op == 0x5092b5dce0715a57dd969f5fb5a6f93025a0b02eab329470ca2b365ca0d7e93a) {
+            self~$SendTon$_internal_text_5092b5dce0715a57dd969f5fb5a6f93025a0b02eab329470ca2b365ca0d7e93a();
+            return (self, true);
+        }
+        
+        ;; Receive "withdraw safe" message
+        if (text_op == 0xbeb2935a82089b154d32f99c4377aa960aa115366cc2c602755e36b97f505cec) {
+            self~$SendTon$_internal_text_beb2935a82089b154d32f99c4377aa960aa115366cc2c602755e36b97f505cec();
+            return (self, true);
+        }
+    }
+    
+    return (self, false);
+}
+
+() recv_internal(int msg_value, cell in_msg_cell, slice in_msg) impure {
+    
+    ;; Context
+    var cs = in_msg_cell.begin_parse();
+    var msg_flags = cs~load_uint(4);
+    var msg_bounced = -(msg_flags & 1);
+    slice msg_sender_addr = __tact_verify_address(cs~load_msg_addr());
+    __tact_context = (msg_bounced, msg_sender_addr, msg_value, cs);
+    __tact_context_sender = msg_sender_addr;
+    
+    ;; Load contract data
+    var self = $SendTon$_contract_load();
+    
+    ;; Handle operation
+    int handled = self~$SendTon$_contract_router_internal(msg_bounced, in_msg);
+    
+    ;; Throw if not handled
+    throw_unless(130, handled);
+    
+    ;; Persist state
+    $SendTon$_contract_store(self);
+}
